@@ -111,7 +111,7 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
   return 0;
 }
 
-void parse_script_options(char *script_opts, struct ws_config *config) {
+static void parse_script_options(char *script_opts, struct ws_config *config) {
   size_t prefix_len = sizeof(SCRIPT_OPT_PREFIX) - 1;
   char *entry_ptr;
   char *entry = strtok_r(script_opts, ",", &entry_ptr);
@@ -144,7 +144,7 @@ void parse_script_options(char *script_opts, struct ws_config *config) {
   }
 }
 
-void *start_ws_thread(void *arg0) {
+static void *start_ws_thread(void *arg0) {
   struct ws_data *data = (struct ws_data *) arg0;
   mpv_handle *handle = data->mpv;
 
