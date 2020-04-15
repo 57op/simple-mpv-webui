@@ -86,7 +86,7 @@ static void *command_status(mpv_handle *mpv, void *param) {
     "\"volume\":%s," // round?
     "\"volume-max\":%s" // round?
     "}",
-    strlen(audio_delay) - 3, audio_delay,
+    (int) (strlen(audio_delay) - 3), audio_delay,
     chapter,
     chapters,
     duration,
@@ -99,11 +99,10 @@ static void *command_status(mpv_handle *mpv, void *param) {
     playlist,
     position,
     remaining,
-    strlen(sub_delay) - 3, sub_delay,
+    (int) (strlen(sub_delay) - 3), sub_delay,
     track_list,
     volume,
     volume_max);
-  /*}*/
 
   mpv_free(_filename);
   mpv_free(_position);
@@ -166,19 +165,19 @@ static void *command_fullscreen(mpv_handle *mpv, void *param) {
 }
 
 static void *command_seek(mpv_handle *mpv, void *param) {
-  snprintf(cmd_args, CMD_SIZE, "seek %s", param);
+  snprintf(cmd_args, CMD_SIZE, "seek %s", (char *) param);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
 static void *command_sub_seek(mpv_handle *mpv, void *param) {
-  snprintf(cmd_args, CMD_SIZE, "sub-seek %s", param);
+  snprintf(cmd_args, CMD_SIZE, "sub-seek %s", (char *) param);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
 static void *command_set_position(mpv_handle *mpv, void *param) {
-  snprintf(cmd_args, CMD_SIZE, "seek %s absolute", param);
+  snprintf(cmd_args, CMD_SIZE, "seek %s absolute", (char *) param);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
@@ -194,7 +193,7 @@ static void *command_playlist_prev(mpv_handle *mpv, void *param) {
   if (pos > 1) {
     snprintf(cmd_args, CMD_SIZE, "seek 0 absolute");
   } else {
-    snprintf(cmd_args, CMD_SIZE, "playlist-prev", param);
+    snprintf(cmd_args, CMD_SIZE, "playlist-prev");
   }
 
   mpv_command_string(mpv, cmd_args);
@@ -203,7 +202,7 @@ static void *command_playlist_prev(mpv_handle *mpv, void *param) {
 }
 
 static void *command_playlist_next(mpv_handle *mpv, void *param) {
-  snprintf(cmd_args, CMD_SIZE, "playlist-next", param);
+  snprintf(cmd_args, CMD_SIZE, "playlist-next");
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
@@ -308,7 +307,6 @@ static void *command_cycle_audio(mpv_handle *mpv, void *param) {
   return NULL;
 }
 
-/* TODO */
 static void *command_cycle_audio_device(mpv_handle *mpv, void *param) {
   mpv_command_string(mpv, "cycle audio-device");
   return NULL;
@@ -350,5 +348,6 @@ struct command COMMANDS[] = {
   { "cycle_audio", 0, command_cycle_audio },
   { "cycle_audio_device", 0, command_cycle_audio_device },
   { "cycle_add_chapter", 1, command_add_chapter },
-  { NULL, 0, NULL }
+  // terminator
+  { 0 }
 };

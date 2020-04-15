@@ -5,7 +5,7 @@
 #include <mpv/client.h>
 
 struct command {
-  char *name;
+  const char *name;
   uint8_t has_param;
   void *(*callback)(mpv_handle *mpv, void *param);
 };

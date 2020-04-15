@@ -4,7 +4,6 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <libgen.h>
-#define __USE_GNU
 #include <dlfcn.h>
 
 #include <libwebsockets.h>
@@ -99,7 +98,7 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
         }
 
         strncpy(&response[LWS_SEND_BUFFER_PRE_PADDING], res, res_len);
-        lws_write(wsi, &response[LWS_SEND_BUFFER_PRE_PADDING], res_len, LWS_WRITE_TEXT);
+        lws_write(wsi, (unsigned char *) &response[LWS_SEND_BUFFER_PRE_PADDING], res_len, LWS_WRITE_TEXT);
 
         free(response);
       }
@@ -149,12 +148,13 @@ static void *start_ws_thread(void *arg0) {
   mpv_handle *handle = data->mpv;
 
   // parse script options starting with ws-webui: ipv6:str [ default: yes, values yes or no], interface:str [default:all, any value], port:int [default: 8080], dir:str [default "ws-webui-page"]
-  struct ws_config config;
-  // set default values
-  config.use_ipv6 = 1;
-  config.iface = NULL;
-  config.port = 8080;
-  config.webui_dir = "ws-webui-page";
+  struct ws_config config = {
+    // set default values
+    .use_ipv6 = 1,
+    .iface = NULL,
+    .port = 8080,
+    .webui_dir = "ws-webui-page"
+  };
 
   char *script_opts = mpv_get_property_string(handle, "script-opts");
   if (script_opts != NULL) {
@@ -163,7 +163,7 @@ static void *start_ws_thread(void *arg0) {
 
   // get plugin path
   Dl_info dl_info;
-  if (dladdr((void*) start_ws_thread, &dl_info) == 0) {
+  if (dladdr(start_ws_thread, &dl_info) == 0) {
     fprintf(stderr, "[dladdr] failed to fetch `plugin_path`\n");
     return NULL;
   }
@@ -184,13 +184,13 @@ static void *start_ws_thread(void *arg0) {
   lws_set_log_level(logs, NULL);
 
   // mount point
-  struct lws_http_mount mount;
-  memset(&mount, 0, sizeof(mount));
-  mount.mountpoint = "/";
-  mount.origin = origin_dir;
-  mount.def = "index.html";
-  mount.origin_protocol = LWSMPRO_FILE;
-  mount.mountpoint_len = 1;
+  struct lws_http_mount mount = {
+    .mountpoint = "/",
+    .origin = origin_dir,
+    .def = "index.html",
+    .origin_protocol = LWSMPRO_FILE,
+    .mountpoint_len = 1
+  };
 
   // servers to host
   struct lws_protocols protocols[] = {
@@ -198,19 +198,19 @@ static void *start_ws_thread(void *arg0) {
     { "http", lws_callback_http_dummy, 0 },
     // websocket for mpv/webui communication
     { "ws", ws_callback, 0 },
-    { NULL, NULL, 0 } /* terminator */
+    // terminator
+    { 0 }
   };
 
   // server info
-  struct lws_context_creation_info info;
-  memset(&info, 0, sizeof(info));
-  //info.vhost_name = NULL;
-  info.iface = config.iface; // NULL -> all interfaces
-  info.port = config.port;
-  info.mounts = &mount;
-  info.protocols = protocols;
-  info.ws_ping_pong_interval = 10;
-  info.options = LWS_SERVER_OPTION_VALIDATE_UTF8;
+  struct lws_context_creation_info info = {
+    .iface = config.iface,
+    .port = config.port,
+    .mounts = &mount,
+    .protocols = protocols,
+    .ws_ping_pong_interval = 10,
+    .options = LWS_SERVER_OPTION_VALIDATE_UTF8
+  };
 
   if (config.use_ipv6 == 0) {
     info.options |= LWS_SERVER_OPTION_DISABLE_IPV6;
@@ -238,17 +238,13 @@ static void *start_ws_thread(void *arg0) {
 }
 
 int mpv_open_cplugin(mpv_handle *handle) {
-  struct ws_data *data = malloc(sizeof(*data));
-  if (data == NULL) {
-    fprintf(stderr, "[malloc] failed to allocate `data`\n");
-    return -1;
-  }
-
-  data->mpv = handle;
-  data->running = 1;
+  struct ws_data data = {
+    .mpv = handle,
+    .running = 1
+  };
   pthread_t ws_thread;
 
-  if (pthread_create(&ws_thread, NULL, start_ws_thread, data) != 0) {
+  if (pthread_create(&ws_thread, NULL, start_ws_thread, &data) != 0) {
     fprintf(stderr, "[pthread_create] failed to create thread `ws_thread`\n");
     return -1;
   }
@@ -257,12 +253,11 @@ int mpv_open_cplugin(mpv_handle *handle) {
     mpv_event *event = mpv_wait_event(handle, -1);
 
     if (event->event_id == MPV_EVENT_SHUTDOWN) {
-      data->running = 0;
+      data.running = 0;
       break;
     }
   }
 
   //pthread_join(ws_thread, NULL);
-  free(data);
   return 0;
 }
