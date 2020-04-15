@@ -2,8 +2,7 @@
 ...is a web based user interface with controls for the [mpv mediaplayer](https://mpv.io/).
 
 This project is a fork of [simple-mpv-webui](https://github.com/open-dynaMIX/simple-mpv-webui).  
-Instead of using lua, the webserver is built through the C library [libwebsockets](https://libwebsockets.org/).  
-Therefore this is an mpv C plugin.
+The webserver is re-implemented using [libwebsockets](https://libwebsockets.org/) C library.  
 
 ## Usage
 To use it, you'll need to compile the plugin:  
@@ -61,7 +60,7 @@ ws-webui-dir=ws-webui-page-mod
 ```
 
 ### Authentication
-Not supported
+Support not planned.
 
 ## Dependencies
 The code was tested on GNU/Linux only.  
@@ -76,11 +75,12 @@ Thanks to [open-dynaMIX](https://github.com/open-dynaMIX) for his work on this.
 
 ## Differences to simple-mpv-web-ui
  - More media controls (namely: sub-seek, sub-scale)
- - No lua
+ - mpv controls are exposed through a websocket backend instead of HTTP+REST backend (static files are still served with a simple HTTP server)
+ - C backend
 
 ## Licensing
 The C code of this project is released under GPLv3 license [[1]](LICENSE).  
-The webui files keep the same license of the upstream project and were modified just to make the UI works with websockets [[2]](ws-webui-page/LICENSE).
+The README and webui files keep the same license of the upstream project and were modified just to make the UI works with websockets [[2]](ws-webui-page/LICENSE).
  
 ## Warning
 This project was done for educational purposes and for fun.
