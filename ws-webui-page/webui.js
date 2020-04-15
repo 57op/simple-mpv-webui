@@ -4,14 +4,18 @@ var DEBUG = false;
     subs = {};
     audios = {};
     blockPosSlider = false;
-    blockVolSlider = false;
+    blockVolSlider = false,
+    intervalId = -1;
 
 function wsConnect() {
   var ws = new WebSocket('ws://' + location.hostname + ':' + location.port, 'ws');
-  var intervalId = -1;
 
   ws.onopen = function() {
     send('status');
+
+    if (intervalId > -1) {
+      clearInterval(intervalId);
+    }
 
     intervalId = setInterval(function() {
       send('status');
@@ -28,7 +32,6 @@ function wsConnect() {
     document.getElementById("artist").innerHTML = "";
     document.getElementById("album").innerHTML = "";
     setPlayPause(true);
-    clearInterval(intervalId);
   };
 
   return ws;
