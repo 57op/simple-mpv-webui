@@ -7,12 +7,40 @@ var DEBUG = false;
     blockVolSlider = false;
 
 function wsConnect() {
-  return new WebSocket('ws://' + location.hostname + ':' + location.port, 'ws');
+  var ws = new WebSocket('ws://' + location.hostname + ':' + location.port, 'ws');
+  var intervalId = -1;
+
+  ws.onopen = function() {
+    send('status');
+
+    intervalId = setInterval(function() {
+      send('status');
+    }, 1000);
+  };
+
+  ws.onmessage = function(response) {
+    var json = JSON.parse(response.data);
+    handleStatusResponse(json);
+  };
+
+  ws.onerror = ws.onclose = function() {
+    document.getElementById("title").innerHTML = "<h1><span class='error'>Couldn't connect to MPV!</span></h1>";
+    document.getElementById("artist").innerHTML = "";
+    document.getElementById("album").innerHTML = "";
+    setPlayPause(true);
+    clearInterval(intervalId);
+  };
+
+  return ws;
 }
 
 var ws = wsConnect();
 
-function send(command, param=null){
+function send(command, param=null) {
+  if (ws.readyState !== WebSocket.OPEN) {
+    ws = wsConnect();
+  }
+
   DEBUG && console.log('Sending command: ' + command + ' - param: ' + param);
   if ('mediaSession' in navigator) {
     audioLoad();
@@ -445,29 +473,6 @@ function setupNotification() {
     navigator.mediaSession.setActionHandler('nexttrack', function() {send('playlist_next');});
   }
 }
-
-var intervalId = -1;
-
-ws.onopen = function() {
-  send('status');
-
-  intervalId = setInterval(function(){
-    send('status');
-  }, 1000);
-};
-
-ws.onmessage = function(response) {
-  var json = JSON.parse(response.data);
-  handleStatusResponse(json);
-};
-
-ws.onerror = ws.onclose = function() {
-  document.getElementById("title").innerHTML = "<h1><span class='error'>Couldn't connect to MPV!</span></h1>";
-  document.getElementById("artist").innerHTML = "";
-  document.getElementById("album").innerHTML = "";
-  setPlayPause(true);
-  clearInterval(intervalId);
-};
 
 // prevent zoom-in on double-click
 // https://stackoverflow.com/questions/37808180/disable-viewport-zooming-ios-10-safari/38573198#38573198
