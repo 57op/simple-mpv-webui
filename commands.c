@@ -5,13 +5,14 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <libwebsockets.h>
+
 // used for mpv_command
 #define CMD_SIZE 256
 static char cmd_args[CMD_SIZE];
 
 // used for returning json
-#define RET_MAX_SIZE 4096 // 4kB [might it be not enough?]
-static char ret_val[RET_MAX_SIZE];
+static unsigned char ret_val[LWS_SEND_BUFFER_PRE_PADDING + RET_MAX_SIZE + LWS_SEND_BUFFER_POST_PADDING];
 
 static double validate_double_param(void *param) {
   double number;
@@ -25,7 +26,7 @@ static int64_t validate_int_param(void *param) {
   return number;
 }
 
-static void *command_status(mpv_handle *mpv, void *param) {
+static unsigned char *command_status(mpv_handle *mpv, void *param) {
   char *_filename = mpv_get_property_string(mpv, "filename");
   char *_duration = mpv_get_property_string(mpv, "duration");
   char *_position = mpv_get_property_string(mpv, "time-pos");
@@ -66,7 +67,7 @@ static void *command_status(mpv_handle *mpv, void *param) {
   }
 
   snprintf(
-    ret_val, RET_MAX_SIZE,
+    (char *) &ret_val[LWS_SEND_BUFFER_PRE_PADDING], RET_MAX_SIZE,
     "{"
     "\"audio-delay\":%.*s," // substr: remove ms
     "\"chapter\":%ld,"
@@ -124,17 +125,17 @@ static void *command_status(mpv_handle *mpv, void *param) {
   return ret_val;
 }
 
-static void *command_play(mpv_handle *mpv, void *param) {
+static unsigned char *command_play(mpv_handle *mpv, void *param) {
   mpv_set_property_string(mpv, "pause", "no");
   return NULL;
 }
 
-static void *command_pause(mpv_handle *mpv, void *param) {
+static unsigned char *command_pause(mpv_handle *mpv, void *param) {
   mpv_set_property_string(mpv, "pause", "yes");
   return NULL;
 }
 
-static void *command_toggle_pause(mpv_handle *mpv, void *param) {
+static unsigned char *command_toggle_pause(mpv_handle *mpv, void *param) {
   char *current = mpv_get_property_string(mpv, "pause");
   char *next;
 
@@ -149,7 +150,7 @@ static void *command_toggle_pause(mpv_handle *mpv, void *param) {
   return NULL;
 }
 
-static void *command_fullscreen(mpv_handle *mpv, void *param) {
+static unsigned char *command_fullscreen(mpv_handle *mpv, void *param) {
   char *current = mpv_get_property_string(mpv, "fullscreen");
   char *next;
 
@@ -164,25 +165,25 @@ static void *command_fullscreen(mpv_handle *mpv, void *param) {
   return NULL;
 }
 
-static void *command_seek(mpv_handle *mpv, void *param) {
+static unsigned char *command_seek(mpv_handle *mpv, void *param) {
   snprintf(cmd_args, CMD_SIZE, "seek %s", (char *) param);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_sub_seek(mpv_handle *mpv, void *param) {
+static unsigned char *command_sub_seek(mpv_handle *mpv, void *param) {
   snprintf(cmd_args, CMD_SIZE, "sub-seek %s", (char *) param);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_set_position(mpv_handle *mpv, void *param) {
+static unsigned char *command_set_position(mpv_handle *mpv, void *param) {
   snprintf(cmd_args, CMD_SIZE, "seek %s absolute", (char *) param);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_playlist_prev(mpv_handle *mpv, void *param) {
+static unsigned char *command_playlist_prev(mpv_handle *mpv, void *param) {
   char *position = mpv_get_property_string(mpv, "time-pos");
   double pos = 0;
 
@@ -201,26 +202,26 @@ static void *command_playlist_prev(mpv_handle *mpv, void *param) {
   return NULL;
 }
 
-static void *command_playlist_next(mpv_handle *mpv, void *param) {
+static unsigned char *command_playlist_next(mpv_handle *mpv, void *param) {
   snprintf(cmd_args, CMD_SIZE, "playlist-next");
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_playlist_jump(mpv_handle *mpv, void *param) {
+static unsigned char *command_playlist_jump(mpv_handle *mpv, void *param) {
   int64_t pos = validate_int_param(param);
   mpv_set_property(mpv, "playlist-pos", MPV_FORMAT_INT64, &pos);
   return NULL;
 }
 
-static void *command_playlist_remove(mpv_handle *mpv, void *param) {
+static unsigned char *command_playlist_remove(mpv_handle *mpv, void *param) {
   int64_t pos = validate_int_param(param);
   snprintf(cmd_args, CMD_SIZE, "playlist-remove %ld", pos);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_playlist_move_up(mpv_handle *mpv, void *param) {
+static unsigned char *command_playlist_move_up(mpv_handle *mpv, void *param) {
   int64_t pos = validate_int_param(param);
 
   if (pos > 0) {
@@ -231,88 +232,88 @@ static void *command_playlist_move_up(mpv_handle *mpv, void *param) {
   return NULL;
 }
 
-static void *command_playlist_shuffle(mpv_handle *mpv, void *param) {
+static unsigned char *command_playlist_shuffle(mpv_handle *mpv, void *param) {
   mpv_command_string(mpv, "playlist-shuffle");
   return NULL;
 }
 
-static void *command_loop_file(mpv_handle *mpv, void *param) {
+static unsigned char *command_loop_file(mpv_handle *mpv, void *param) {
   // TODO: param: { inf, no }
   mpv_set_property_string(mpv, "loop-file", param);
   return NULL;
 }
 
-static void *command_loop_playlist(mpv_handle *mpv, void *param) {
+static unsigned char *command_loop_playlist(mpv_handle *mpv, void *param) {
   // TODO: param { inf, no, force }
   mpv_set_property_string(mpv, "loop-playlist", param);
   return NULL;
 }
 
-static void *command_add_volume(mpv_handle *mpv, void *param) {
+static unsigned char *command_add_volume(mpv_handle *mpv, void *param) {
   int64_t v = validate_int_param(param);
   snprintf(cmd_args, CMD_SIZE, "add volume %ld", v);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_set_volume(mpv_handle *mpv, void *param) {
+static unsigned char *command_set_volume(mpv_handle *mpv, void *param) {
   int64_t v = validate_int_param(param);
   snprintf(cmd_args, CMD_SIZE, "set volume %ld", v);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_add_sub_delay(mpv_handle *mpv, void *param) {
+static unsigned char *command_add_sub_delay(mpv_handle *mpv, void *param) {
   double ms = validate_double_param(param);
   snprintf(cmd_args, CMD_SIZE, "add sub-delay %lf", ms);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_set_sub_delay(mpv_handle *mpv, void *param) {
+static unsigned char *command_set_sub_delay(mpv_handle *mpv, void *param) {
   double ms = validate_double_param(param);
   snprintf(cmd_args, CMD_SIZE, "set sub-delay %lf", ms);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_add_sub_scale(mpv_handle *mpv, void *param) {
+static unsigned char *command_add_sub_scale(mpv_handle *mpv, void *param) {
   double s = validate_double_param(param);
   snprintf(cmd_args, CMD_SIZE, "add sub-scale %lf", s);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_add_audio_delay(mpv_handle *mpv, void *param) {
+static unsigned char *command_add_audio_delay(mpv_handle *mpv, void *param) {
   double ms = validate_double_param(param);
   snprintf(cmd_args, CMD_SIZE, "add audio-delay %lf", ms);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_set_audio_delay(mpv_handle *mpv, void *param) {
+static unsigned char *command_set_audio_delay(mpv_handle *mpv, void *param) {
   double ms = validate_double_param(param);
   snprintf(cmd_args, CMD_SIZE, "set audio-delay %lf", ms);
   mpv_command_string(mpv, cmd_args);
   return NULL;
 }
 
-static void *command_cycle_sub(mpv_handle *mpv, void *param) {
+static unsigned char *command_cycle_sub(mpv_handle *mpv, void *param) {
   mpv_command_string(mpv, "cycle sub");
   return NULL;
 }
 
-static void *command_cycle_audio(mpv_handle *mpv, void *param) {
+static unsigned char *command_cycle_audio(mpv_handle *mpv, void *param) {
   mpv_command_string(mpv, "cycle audio");
   return NULL;
 }
 
-static void *command_cycle_audio_device(mpv_handle *mpv, void *param) {
+static unsigned char *command_cycle_audio_device(mpv_handle *mpv, void *param) {
   mpv_command_string(mpv, "cycle audio-device");
   return NULL;
 }
 
-static void *command_add_chapter(mpv_handle *mpv, void *param) {
+static unsigned char *command_add_chapter(mpv_handle *mpv, void *param) {
   int64_t num = validate_int_param(param);
 
   snprintf(cmd_args, CMD_SIZE, "add chapter %ld", num);

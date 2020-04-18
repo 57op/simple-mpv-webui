@@ -73,7 +73,7 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
 
       size_t i = 0;
       struct command *cmd = NULL;
-      void *res;
+      unsigned char *res;
 
       while (cmd == NULL && COMMANDS[i].name != NULL) {
         if (strcmp(message->command, COMMANDS[i].name) == 0) {
@@ -87,20 +87,8 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
         printf("{ command: %s, param: %s }\n", message->command, message->param);
         printf("Command not implemented\n");
       } else if ((res = cmd->callback(data->mpv, cmd->has_param ? message->param : NULL)) != NULL) {
-        // prepend LWS_SEND_BUFFER_PRE_PADDING
-        size_t res_len =  strlen(res);
-        size_t response_size = LWS_SEND_BUFFER_PRE_PADDING + res_len + LWS_SEND_BUFFER_POST_PADDING;
-        char *response = malloc(response_size);
-
-        if (response == NULL) {
-          fprintf(stderr, "[malloc] failed to allocate `response`\n");
-          return -1;
-        }
-
-        strncpy(&response[LWS_SEND_BUFFER_PRE_PADDING], res, res_len);
-        lws_write(wsi, (unsigned char *) &response[LWS_SEND_BUFFER_PRE_PADDING], res_len, LWS_WRITE_TEXT);
-
-        free(response);
+        unsigned char *result = &res[LWS_SEND_BUFFER_PRE_PADDING];
+        lws_write(wsi, result, strlen((char *) result), LWS_WRITE_TEXT);
       }
 
       break;
