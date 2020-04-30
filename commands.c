@@ -8,10 +8,11 @@
 #include <libwebsockets.h>
 
 // used for mpv_command
-#define CMD_SIZE 256
+#define CMD_SIZE 0x100
 static char cmd_args[CMD_SIZE];
 
 // used for returning json
+#define RET_MAX_SIZE 0x2000 // 8kB [might it be not enough?], malloc fails somehow when dynamically allocating in the heap
 static unsigned char ret_val[LWS_SEND_BUFFER_PRE_PADDING + RET_MAX_SIZE + LWS_SEND_BUFFER_POST_PADDING];
 
 static double validate_double_param(void *param) {
@@ -348,7 +349,7 @@ struct command COMMANDS[] = {
   { "cycle_sub", 0, command_cycle_sub },
   { "cycle_audio", 0, command_cycle_audio },
   { "cycle_audio_device", 0, command_cycle_audio_device },
-  { "cycle_add_chapter", 1, command_add_chapter },
+  { "add_chapter", 1, command_add_chapter },
   // terminator
   { 0 }
 };
