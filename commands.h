@@ -12,6 +12,4 @@ struct command {
 
 extern struct command COMMANDS[];
 
-#define RET_MAX_SIZE 4096 // 4kB [might it be not enough?]
-
 #endif // COMMANDS_H
