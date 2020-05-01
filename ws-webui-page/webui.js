@@ -4,52 +4,49 @@ var DEBUG = false;
     subs = {};
     audios = {};
     blockPosSlider = false;
-    blockVolSlider = false,
-    intervalId = -1;
+    blockVolSlider = false;
 
 function wsConnect() {
-  var ws = new WebSocket('ws://' + location.hostname + ':' + location.port, 'ws');
-
-  ws.onopen = function() {
-    send('status');
-
-    if (intervalId > -1) {
-      clearInterval(intervalId);
-    }
-
-    intervalId = setInterval(function() {
-      send('status');
-    }, 1000);
-  };
-
-  ws.onmessage = function(response) {
-    var json = JSON.parse(response.data);
-    handleStatusResponse(json);
-  };
-
-  ws.onerror = ws.onclose = function() {
-    document.getElementById("title").innerHTML = "<h1><span class='error'>Couldn't connect to MPV!</span></h1>";
-    document.getElementById("artist").innerHTML = "";
-    document.getElementById("album").innerHTML = "";
-    setPlayPause(true);
-  };
-
-  return ws;
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(`ws://${location.hostname}:${location.port}`, 'ws')
+    setTimeout(reject, 5000)
+    ws.addEventListener('open', e => resolve(e.target))
+  })
 }
 
-var ws = wsConnect();
+function connectionError() {
+  document.getElementById("title").innerHTML = "<h1><span class='error'>Couldn't connect to MPV!</span></h1>"
+  document.getElementById("artist").innerHTML = ""
+  document.getElementById("album").innerHTML = ""
+  setPlayPause(true)
+}
 
-function send(command, param=null) {
-  if (ws.readyState !== WebSocket.OPEN) {
-    ws = wsConnect();
+async function send(command, param=null) {
+  if (send.ws === undefined || send.ws.readyState !== WebSocket.OPEN) {
+    // (re)connection attempt
+    try {
+      const ws = await wsConnect()
+
+      ws.addEventListener('close', connectionError)
+      ws.addEventListener('error', connectionError)
+      ws.addEventListener('message', response => {
+        handleStatusResponse(JSON.parse(response.data))
+      })
+
+      send.ws = ws
+    } catch (e) {
+      /* console.error('Connection timed out') */
+    }
   }
 
-  DEBUG && console.log('Sending command: ' + command + ' - param: ' + param);
+  if (send.ws) {
+    send.ws.send(JSON.stringify({ command, param }))
+  }
+
+  DEBUG && console.log(`Sending command: ${command} - param: ${param}`)
   if ('mediaSession' in navigator) {
-    audioLoad();
+    audioLoad()
   }
-
-  ws.send(JSON.stringify({ command, param }));
 }
 
 function togglePlaylist() {
@@ -487,3 +484,6 @@ document.addEventListener('touchend', function (event) {
   }
   lastTouchEnd = now;
 }, false);
+
+send('status')
+setInterval(() => send('status'), 1000)
