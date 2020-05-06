@@ -52,6 +52,7 @@ def command_cut(cmd):
       try:
         float(part)
         cut = i
+        break
       except ValueError:
         pass
 
