@@ -1,6 +1,7 @@
+<!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8"/>
+    <meta charset="utf-8">
     <meta name="viewport" content="user-scalable=no">
     <meta name="author" content="Fabio Ambauen">
     <title>simple-mpv-webui WS</title>
@@ -20,184 +21,222 @@
     <meta name="format-detection" content="telephone=no">
     <link rel="stylesheet" type="text/css" href="webui.css">
     <link rel="stylesheet" href="static/fontawesome-free-5.0.2/css/fontawesome-all.min.css">
+    <script src="static/scripts/vue.min.js"></script>
+    <script src="webui.js"></script>
   </head>
   <body>
-    <div id="overlay">
-      <table class="playlist-control">
-        <tr>
-          <td>
-              <div onClick="send('toggle_pause');" class="button green content icon-content playPauseButton playlist-controls">
-                <i class="fas fa-play"></i><i class="fas fa-pause"></i>
+    <div id="app">
+      <div id="overlay" v-show="overlay">
+        <table class="playlist-control">
+          <tr>
+            <td>
+              <div v-on:click="command('cycle pause')" class="button green content icon-content playPauseButton playlist-controls">
+                <i v-if="pause" class="fas fa-play"></i>
+                <i v-else class="fas fa-pause"></i>
               </div>
-          </td>
-          <td>
-              <div onClick="playlist_loop_cycle()" class="button blue content icon-content playlist-controls playlistLoopButton">
+            </td>
+            <td>
+              <div v-on:click="playlistLoopCycle" class="button blue content icon-content playlist-controls playlistLoopButton">
                 <i class="fas fa-redo-alt"></i>
+                <span v-if="loopFile !== 'no'">
+                  1
+                </span>
+                <span v-else-if="loopPlaylist !== 'no'">
+                  Σ
+                </span>
+                <span v-else>
+                  !
+                </span>
               </div>
-          </td>
-          <td>
-              <div onClick="send('playlist_shuffle')" class="button blue content icon-content playlist-controls">
+            </td>
+            <td>
+              <div v-on:click="command('playlist-shuffle')" class="button blue content icon-content playlist-controls">
                 <i class="fas fa-random"></i>
               </div>
-          </td>
-          <td>
-              <div onClick="togglePlaylist()" class="button violet content icon-content playlist-controls">
+            </td>
+            <td>
+              <div v-on:click="overlay = false" class="button violet content icon-content playlist-controls">
                 <i class="fas fa-times-circle"></i>
               </div>
-          </td>
-        </tr>
-      </table>
-      <div id="playlist"></div>
-    </div>
+            </td>
+          </tr>
+        </table>
+        <div id="playlist">
+          <table class="playlist" v-for="(entry, index) in playlist">
+            <tr class="playlist" v-bind:class="{ violet: entry.playing, gray: !entry.playing }">
+              <td class="playlist">
+                <div v-on:click="command('cycle pause')" v-if="entry.playing">
+                  <i v-if="pause" class="fas fa-play"></i>
+                  <i v-else class="fas fa-pause"></i>
+                </div>
+              </td>
+              <td class="playlist" v-on:click="!entry.playing && command(`set playlist-pos ${index}`)">
+                {{ entryName(entry) }}
+              </td>
+              <td v-if="index > 0"
+                  class="playlist"
+                  v-on:click="command(`playlist-move ${index} ${index - 1}`)">
+                <i class="fas fa-arrow-up"></i>
+              </td>
+              <td class="playlist"
+                  v-on:click="command(`playlist-remove ${index}`)">
+                <i class="fas fa-trash"></i>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </div>
 
-    <div class="burger">
-      <a href="#" onClick="togglePlaylist(); return false;"><i class="fas fa-list-ul"></i></a>
-    </div>
-    <h1 id="title">Title</h1>
-    <h2 id="artist">Artist</h2>
-    <h3 id="album">Album</h3>
+      <div class="burger">
+        <a href="#" v-on:click.prevent="overlay = true"><i class="fas fa-list-ul"></i></a>
+      </div>
+      <h1 id="title">
+        <span v-if="connectionStatus">{{ title }}</span>
+        <span v-else class="error">Couldn't connect to MPV!</span>
+      </h1>
+      <h2 id="artist">{{ metadata?.artist ?? 'Artist' }}</h2>
+      <h3 id="album">{{ metadata?.album ?? 'Album' }}</h3>
 
-    <div class="table">
-      <table class="prop-table">
-        <tr>
-          <td>Sub-delay:</td>
-          <td id="sub-delay"></td>
-        </tr>
-        <tr>
-          <td>Audio-delay:</td>
-          <td id="audio-delay"></td>
-        </tr>
-        <tr id="chapterInfo">
-          <td>Chapter:</td>
-          <td id="chapter"></td>
-        </tr>
-      </table>
-    </div>
+      <div class="table">
+        <table class="prop-table">
+          <tr>
+            <td>Sub-delay:</td>
+            <td id="sub-delay">{{ subDelay }} ms</td>
+          </tr>
+          <tr>
+            <td>Audio-delay:</td>
+            <td id="audio-delay">{{ audioDelay }} ms</td>
+          </tr>
+          <tr v-if="chapters > 0" id="chapterInfo">
+            <td>Chapter:</td>
+            <td id="chapter">{{ chapter }}</td>
+          </tr>
+        </table>
+      </div>
 
-    <div class="slidecontainer">
-      <input type="range" min="0" max="0" value="0" step="any" class="slider" id="mediaPosition" title="posSlider">
-      <div class="sliderInfoContainer">
-        <div class="left" id="remaining"></div>
-        <div class="sliderCenter" id="position"></div>
-        <div class="right" id="duration"></div>
+      <div class="slidecontainer">
+        <input type="range" min="0" v-bind:max="duration" v-model="position" v-on:input="command(`seek ${position} absolute`)" step="any" class="slider" id="mediaPosition" title="posSlider">
+        <div class="sliderInfoContainer">
+          <div class="left" id="remaining">{{ formatTime(remaining) }}</div>
+          <div class="sliderCenter" id="position">{{ formatTime(position) }}</div>
+          <div class="right" id="duration">{{ formatTime(duration) }}</div>
+        </div>
       </div>
-    </div>
 
-    <div class="slidecontainer">
-      <input type="range" min="0" max="130" value="100" step="1" class="slider" id="mediaVolume" title="volSlider">
-      <div class="sliderInfoContainer sliderVolume">
-        <div class="left sliderVolume"><i class="fas fa-volume-down"></i></div>
-        <div class="sliderCenter" id="volume"></div>
-        <div class="right"><i class="fas fa-volume-up"></i></div>
+      <div class="slidecontainer">
+        <input type="range" min="0" v-bind:max="volumeMax" v-model="volume" v-on:input="command(`set volume ${volume}`)" step="1" class="slider" id="mediaVolume" title="volSlider">
+        <div class="sliderInfoContainer sliderVolume">
+          <div class="left sliderVolume"><i class="fas fa-volume-down"></i></div>
+          <div class="sliderCenter" id="volume">{{ volume }}%</div>
+          <div class="right"><i class="fas fa-volume-up"></i></div>
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('toggle_pause')" class="button full-width green">
-      <div class="content icon-content playPauseButton">
-        <i class="fas fa-play"></i><i class="fas fa-pause"></i>
+      <div class="button full-width green">
+        <div v-on:click="command('cycle pause')" class="content icon-content playPauseButton">
+          <i v-if="pause" class="fas fa-play"></i>
+          <i v-else class="fas fa-pause"></i>
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('sub_seek', '-1')" class="button left blue">
-      <div class="content icon-content">
-        <i class="fas fa-arrow-left"></i>
+      <div v-on:click="command('sub_seek -1')" class="button left blue">
+        <div class="content icon-content">
+          <i class="fas fa-arrow-left"></i>
+        </div>
       </div>
-    </div>
-    <div onClick="send('sub_seek', '1')" class="button right blue">
-      <div class="content icon-content">
-        <i class="fas fa-arrow-right"></i>
+      <div v-on:click="command('sub_seek 1')" class="button right blue">
+        <div class="content icon-content">
+          <i class="fas fa-arrow-right"></i>
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('seek', '-10')" class="button left blue">
-      <div class="content icon-content">
-        <i class="fas fa-backward"></i>
+      <div v-on:click="command('seek -10')" class="button left blue">
+        <div class="content icon-content">
+          <i class="fas fa-backward"></i>
+        </div>
       </div>
-    </div>
-    <div onClick="send('seek', '10')" class="button right blue">
-      <div class="content icon-content">
-        <i class="fas fa-forward"></i>
+      <div v-on:click="command('seek 10')" class="button right blue">
+        <div class="content icon-content">
+          <i class="fas fa-forward"></i>
+        </div>
       </div>
-    </div>    
 
-    <div onClick="send('add_chapter', '-1')" class="button left blue chapterButton chapterButtonSub">
-      <div class="content icon-content">
-        <i class="fas fa-step-backward"></i>
+      <div v-on:click="command('add chapter -1')" class="button left blue chapterButton chapterButtonSub">
+        <div class="content icon-content">
+          <i class="fas fa-step-backward"></i>
+        </div>
       </div>
-    </div>
-    <div onClick="send('add_chapter', '1')" class="button right blue chapterButton chapterButtonAdd">
-      <div class="content icon-content">
-        <i class="fas fa-step-forward"></i>
+      <div v-on:click="command('add chapter 1')" class="button right blue chapterButton chapterButtonAdd">
+        <div class="content icon-content">
+          <i class="fas fa-step-forward"></i>
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('playlist_prev')" class="button left blue">
-      <div class="content icon-content">
-        <i class="fas fa-fast-backward"></i>
+      <div v-on:click="command(position > 1 ? 'seek 0 absolute' : 'playlist-prev')" class="button left blue">
+        <div class="content icon-content">
+          <i class="fas fa-fast-backward"></i>
+        </div>
       </div>
-    </div>
-    <div onClick="send('playlist_next')" class="button right blue">
-      <div class="content icon-content">
-        <i class="fas fa-fast-forward"></i>
+      <div v-on:click="command('playlist-next')" class="button right blue">
+        <div class="content icon-content">
+          <i class="fas fa-fast-forward"></i>
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('cycle_sub')" class="button left violet">
-      <div id="nextSub" class="content text-content">
-        Next sub
+      <div v-on:click="command('cycle sub')" class="button left violet">
+        <div id="nextSub" class="content text-content">
+          Next sub ({{ currentSubTrack }} / {{ subTracks }})
+        </div>
       </div>
-    </div>
-    <div onClick="send('cycle_audio')" class="button right violet">
-      <div id="nextAudio" class="content text-content">
-        Next audio
+      <div v-on:click="command('cycle audio')" class="button right violet">
+        <div id="nextAudio" class="content text-content">
+          Next audio ({{ currentAudioTrack }} / {{ audioTracks }})
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('add_sub_delay', '-0.05')" class="button left yellow">
-      <div class="content text-content">
-        Sub delay -
+      <div v-on:click="command('add sub-delay -0.05')" class="button left yellow">
+        <div class="content text-content">
+          Sub delay -
+        </div>
       </div>
-    </div>
-    <div onClick="send('add_sub_delay', '0.05')" class="button right yellow">
-      <div class="content text-content">
-        Sub delay +
+      <div v-on:click="command('add sub-delay 0.05')" class="button right yellow">
+        <div class="content text-content">
+          Sub delay +
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('add_sub_scale', '-0.1')" class="button left yellow">
-      <div class="content text-content">
-        Sub scale -
+      <div v-on:click="command('add sub-scale -0.1')" class="button left yellow">
+        <div class="content text-content">
+          Sub scale -
+        </div>
       </div>
-    </div>
-    <div onClick="send('add_sub_scale', '0.1')" class="button right yellow">
-      <div class="content text-content">
-        Sub scale +
+      <div v-on:click="command('add sub-scale 0.1')" class="button right yellow">
+        <div class="content text-content">
+          Sub scale +
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('add_audio_delay', '-0.05')" class="button left yellow">
-      <div class="content text-content">
-        Audio delay -
+      <div v-on:click="command('add audio-delay -0.05')" class="button left yellow">
+        <div class="content text-content">
+          Audio delay -
+        </div>
       </div>
-    </div>
-    <div onClick="send('add_audio_delay', '0.05')" class="button right yellow">
-      <div class="content text-content">
-        Audio delay +
+      <div v-on:click="command('add audio-delay 0.05')" class="button right yellow">
+        <div class="content text-content">
+          Audio delay +
+        </div>
       </div>
-    </div>
 
-    <div onClick="send('fullscreen')" class="button left gray">
-      <div id="fullscreenButton" class="content text-content">
-        Fullscreen
+      <div v-on:click="command('cycle fullscreen')" class="button left gray">
+        <div id="fullscreenButton" class="content text-content">
+          Fullscreen {{ fullscreen ? 'off' : 'on' }}
+        </div>
+      </div>
+      <div v-on:click="command('cycle audio-device')" class="button right gray">
+        <div class="content text-content">
+          Audio device
+        </div>
       </div>
     </div>
-    <div onClick="send('cycle_audio_device')" class="button right gray">
-      <div class="content text-content">
-        Audio device
-      </div>
-    </div>
-
-    <audio id="audio" src="static/audio/silence.mp3" loop></audio>
-    <script src="webui.js"></script>
   </body>
 </html>
