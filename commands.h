@@ -6,8 +6,7 @@
 
 struct command {
   const char *name;
-  uint8_t has_param;
-  unsigned char *(*callback)(mpv_handle *mpv, void *param);
+  char *(*callback)(mpv_handle *mpv, const char *param);
 };
 
 extern struct command COMMANDS[];

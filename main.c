@@ -13,7 +13,7 @@
 #define SCRIPT_OPT_PREFIX "ws-webui-"
 
 struct web_message {
-  char command[256];
+  char command[32];
   char param[256];
 };
 
@@ -73,7 +73,7 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
 
       size_t i = 0;
       struct command *cmd = NULL;
-      unsigned char *res;
+      char *res;
 
       while (cmd == NULL && COMMANDS[i].name != NULL) {
         if (strcmp(message->command, COMMANDS[i].name) == 0) {
@@ -84,11 +84,10 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
       }
 
       if (cmd == NULL) {
-        printf("{ command: %s, param: %s }\n", message->command, message->param);
-        printf("Command not implemented\n");
-      } else if ((res = cmd->callback(data->mpv, cmd->has_param ? message->param : NULL)) != NULL) {
-        unsigned char *result = &res[LWS_SEND_BUFFER_PRE_PADDING];
-        lws_write(wsi, result, strlen((char *) result), LWS_WRITE_TEXT);
+        printf("{ command: %s, param: %s }: invalid request\n", message->command, message->param);
+      } else if ((res = cmd->callback(data->mpv, message->param)) != NULL) {
+        res = &res[LWS_SEND_BUFFER_PRE_PADDING];
+        lws_write(wsi, (unsigned char *) res, strlen(res), LWS_WRITE_TEXT);
       }
 
       break;
