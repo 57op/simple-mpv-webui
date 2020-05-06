@@ -6,7 +6,7 @@
 
 struct command {
   const char *name;
-  char *(*callback)(mpv_handle *mpv, const char *param);
+  char *(*callback)(mpv_handle *mpv, char *param);
 };
 
 extern struct command COMMANDS[];

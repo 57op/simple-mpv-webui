@@ -4,33 +4,30 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <ctype.h>
 
 #include <libwebsockets.h>
 
 // whitelist: hashmap section
-// hashmap are generated with utils/whitelist.py
-#define BUCKET_NO 7
+// hashmap are generated with utilities/whitelist.py
+#define BUCKET_NO 5
 #define PROPERTIES_BUCKET_LEN 5
 #define COMMANDS_BUCKET_LEN 6
 
 static const char *properties_hashmap[BUCKET_NO][PROPERTIES_BUCKET_LEN] = {
-  { "chapters", "duration", "playtime-remaining", "loop-file", NULL },
-  { "fullscreen", NULL, NULL, NULL, NULL },
   { "sub-delay", NULL, NULL, NULL, NULL },
-  { "metadata", "track-list", NULL, NULL, NULL },
-  { "time-pos", NULL, NULL, NULL, NULL },
-  { "playlist", "chapter", "pause", "volume", "volume-max" },
-  { "filename", "audio-delay", "loop-playlist", NULL, NULL }
+  { "chapters", "filename", "playlist", "volume", "metadata" },
+  { "chapter", "time-pos", "playtime-remaining", "loop-file", "audio-delay" },
+  { "loop-playlist", "pause", "duration", "volume-max", NULL },
+  { "fullscreen", "track-list", NULL, NULL, NULL }
 };
 
 static const char *commands_hashmap[BUCKET_NO][COMMANDS_BUCKET_LEN] = {
-  { "seek 10", "add chapter 1", "cycle audio", "add sub-scale -0.1", NULL, NULL },
-  { "set loop-playlist", "playlist-remove", "set volume", "sub_seek 1", "add sub-delay -0.05", "cycle fullscreen" },
-  { "set loop-file", "seek -10", "playlist-next", "cycle sub", "add sub-scale 0.1", "cycle audio-device" },
-  { "playlist-shuffle", NULL, NULL, NULL, NULL, NULL },
-  { "cycle pause", "cycle pause", "playlist-move", "cycle pause", "add sub-delay 0.05", NULL },
-  { "add chapter -1", NULL, NULL, NULL, NULL, NULL },
-  { "set playlist-pos", "seek absolute", "sub_seek -1", "add audio-delay -0.05", "add audio-delay 0.05", NULL }
+  { "add chapter", "playlist-shuffle", "playlist-move", "seek", NULL, NULL },
+  { "set loop-playlist", NULL, NULL, NULL, NULL, NULL },
+  { "sub_seek", "set playlist-pos", "cycle fullscreen", "set volume", "cycle pause", "playlist-remove" },
+  { "playlist-next", "cycle sub", "set loop-file", NULL, NULL, NULL },
+  { "cycle audio", "add sub-delay", "add audio-delay", "cycle audio-device", "add sub-scale", NULL }
 };
 
 static size_t hash_k33(const char *str) {
@@ -49,7 +46,7 @@ static size_t hash_k33(const char *str) {
 #define RET_MAX_SIZE 0x2000
 static char ret_val[LWS_SEND_BUFFER_PRE_PADDING + RET_MAX_SIZE + LWS_SEND_BUFFER_POST_PADDING];
 
-static char *command_get_property(mpv_handle *mpv, const char *property) {
+static char *command_get_property(mpv_handle *mpv, char *property) {
   // check if property is in whitelisted properties (hashmap)
   const char **bucket = properties_hashmap[hash_k33(property)];
   uint8_t found = 0;
@@ -89,8 +86,33 @@ static char *command_get_property(mpv_handle *mpv, const char *property) {
   return ret_val;
 }
 
-static char *command_command(mpv_handle *mpv, const char *command) {
+static char *command_run_command(mpv_handle *mpv, char *command) {
   // check if command is in whitelisted commands (hashmap)
+  char tmp_command[256]; // struct web_message.param
+  strncpy(tmp_command, command, 256);
+
+  char *token = strtok(tmp_command, " ");
+  ptrdiff_t cut_position = 0;
+
+  while (token != NULL) {
+    if (token[0] == '-' || isdigit(token[0])) {
+      cut_position = token - tmp_command - 1;
+      break;
+    }
+
+    token = strtok(NULL, " ");
+  }
+
+  // truncate command to the detected position
+  // store the truncated position value
+  char cut_char = '\0';
+
+  if (cut_position > 0) {
+    cut_char = command[cut_position];
+    command[cut_position] = '\0';
+  }
+
+  // search in the hashmap
   const char **bucket = commands_hashmap[hash_k33(command)];
   uint8_t found = 0;
 
@@ -102,10 +124,16 @@ static char *command_command(mpv_handle *mpv, const char *command) {
   int status = -1;
 
   if (found == 1) {
+    // restore the truncated value
+    if (cut_char != '\0') {
+      command[cut_position] = cut_char;
+    }
+
+    // execute the command
     status = mpv_command_string(mpv, command);
-  } else {
+  }/* else {
     fprintf(stderr, "[command_command] unkown command: %s\n", command);
-  }
+  }*/
 
   strcpy(&ret_val[LWS_SEND_BUFFER_PRE_PADDING], status == 0 ? "true" : "false");
 
@@ -114,7 +142,7 @@ static char *command_command(mpv_handle *mpv, const char *command) {
 
 struct command COMMANDS[] = {
   { "get_property", command_get_property },
-  { "run_command", command_command },
+  { "run_command", command_run_command },
   // terminator
   { 0 }
 };

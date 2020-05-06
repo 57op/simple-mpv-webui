@@ -145,12 +145,12 @@ function main () {
           }
 
           this.pause = await this.mpv.get_property('pause') === 'yes'
-          this.position = +(await this.mpv.get_property('time-pos')) || 0
+          this.position = +(await this.mpv.get_property('time-pos')) ?? 0
           this.duration = +(await this.mpv.get_property('duration'))
           this.remaining = +(await this.mpv.get_property('playtime-remaining'))
           this.loopFile = await this.mpv.get_property('loop-file')
           this.loopPlaylist = await this.mpv.get_property('loop-playlist')
-          this.volume = +(await this.mpv.get_property('volume')) || 100
+          this.volume = +(await this.mpv.get_property('volume')) ?? 100
           this.volumeMax = +(await this.mpv.get_property('volume-max'))
           this.fullscreen = await this.mpv.get_property('fullscreen') === 'yes'
         } catch (e) {

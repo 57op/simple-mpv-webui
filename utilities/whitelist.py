@@ -40,6 +40,26 @@ def to_c_array(hashmap: List[List[str]], name: str) -> str:
 
   return f'const char *{name}[{len(hashmap)}][{max_bucket_len}] = {{\n{c}\n}};'
 
+def command_cut(cmd):
+  cmd = cmd.split()
+  cut = None
+
+  for (i, part) in enumerate(cmd):
+    if part[0:2] == '${':
+      cut = i
+      break
+    else:
+      try:
+        float(part)
+        cut = i
+      except ValueError:
+        pass
+
+  if cut is not None:
+    cmd = cmd[:cut]
+
+  return ' '.join(cmd)
+
 if __name__ == '__main__':
   import argparse
 
@@ -56,16 +76,15 @@ if __name__ == '__main__':
   parser.add_argument('--buckets', type=int, default=5)
 
   args = parser.parse_args()
-  props = []
-  cmds = []
+  props = set()
+  cmds = set()
 
   for file in args.files:
     for (fn, arg) in find_props_cmds(file):
       if fn == 'get_property':
-        props.append(arg)
+        props.add(arg)
       else:
-        arg = ' '.join(re.sub('\$\{.+?\}', '', arg).split())
-        cmds.append(arg)
+        cmds.add(command_cut(arg))
 
   max_prop_len = max(map(lambda prop: len(prop), props))
   max_cmd_len = max(map(lambda cmd: len(cmd), cmds))
