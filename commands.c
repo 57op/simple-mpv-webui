@@ -87,29 +87,14 @@ static char *command_get_property(mpv_handle *mpv, char *property) {
 }
 
 static char *command_run_command(mpv_handle *mpv, char *command) {
-  // check if command is in whitelisted commands (hashmap)
-  char tmp_command[256]; // struct web_message.param
-  strncpy(tmp_command, command, 256);
+  size_t cut_position = 0;
+  size_t command_len = strlen(command) - 1;
 
-  char *token = strtok(tmp_command, " ");
-  ptrdiff_t cut_position = 0;
-
-  while (token != NULL) {
-    if (token[0] == '-' || isdigit(token[0])) {
-      cut_position = token - tmp_command - 1;
-      break;
+  for (size_t i = 1; cut_position == 0 && i < command_len; i++) {
+    if (isspace(command[i]) && (command[i + 1] == '-' || isdigit(command[i + 1]))) {
+      command[i] = '\0';
+      cut_position = i;
     }
-
-    token = strtok(NULL, " ");
-  }
-
-  // truncate command to the detected position
-  // store the truncated position value
-  char cut_char = '\0';
-
-  if (cut_position > 0) {
-    cut_char = command[cut_position];
-    command[cut_position] = '\0';
   }
 
   // search in the hashmap
@@ -125,8 +110,8 @@ static char *command_run_command(mpv_handle *mpv, char *command) {
 
   if (found == 1) {
     // restore the truncated value
-    if (cut_char != '\0') {
-      command[cut_position] = cut_char;
+    if (cut_position > 0) {
+      command[cut_position] = ' ';
     }
 
     // execute the command
