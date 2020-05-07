@@ -172,7 +172,7 @@
         </div>
       </div>
 
-      <div v-on:click="command(position > 1 ? 'seek 0 absolute' : 'playlist-prev')" class="button left blue">
+      <div v-on:click="position > 1 ? command('seek 0 absolute') : command('playlist-prev')" class="button left blue">
         <div class="content icon-content">
           <i class="fas fa-fast-backward"></i>
         </div>
