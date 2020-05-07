@@ -23,11 +23,11 @@ static const char *properties_hashmap[BUCKET_NO][PROPERTIES_BUCKET_LEN] = {
 };
 
 static const char *commands_hashmap[BUCKET_NO][COMMANDS_BUCKET_LEN] = {
-  { "add chapter", "playlist-shuffle", "playlist-move", "seek", NULL, NULL },
+  { "add chapter", "seek", "playlist-move", "playlist-shuffle", NULL, NULL },
   { "set loop-playlist", NULL, NULL, NULL, NULL, NULL },
-  { "sub_seek", "set playlist-pos", "cycle fullscreen", "set volume", "cycle pause", "playlist-remove" },
-  { "playlist-next", "cycle sub", "set loop-file", NULL, NULL, NULL },
-  { "cycle audio", "add sub-delay", "add audio-delay", "cycle audio-device", "add sub-scale", NULL }
+  { "set volume", "cycle pause", "set playlist-pos", "sub_seek", "playlist-remove", "cycle fullscreen" },
+  { "cycle sub", "set loop-file", "playlist-next", NULL, NULL, NULL },
+  { "cycle audio", "cycle audio-device", "add sub-delay", "add audio-delay", "add sub-scale", "playlist-prev" }
 };
 
 static size_t hash_k33(const char *str) {
@@ -91,7 +91,12 @@ static char *command_run_command(mpv_handle *mpv, char *command) {
   size_t command_len = strlen(command) - 1;
 
   for (size_t i = 1; cut_position == 0 && i < command_len; i++) {
-    if (isspace(command[i]) && (command[i + 1] == '-' || isdigit(command[i + 1]))) {
+    if (
+      isspace(command[i]) && (
+        (command[i + 1] == '-' || isdigit(command[i + 1])) ||
+        (i < command_len - 2 && strncmp(&command[i + 1], "inf", 3) == 0) ||
+        (i < command_len - 1 && strncmp(&command[i + 1], "no", 2) == 0))
+    ) {
       command[i] = '\0';
       cut_position = i;
     }
