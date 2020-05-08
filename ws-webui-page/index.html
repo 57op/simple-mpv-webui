@@ -94,8 +94,8 @@
         <span v-if="connectionStatus">{{ title }}</span>
         <span v-else class="error">Couldn't connect to MPV!</span>
       </h1>
-      <h2 id="artist">{{ metadata?.artist ?? 'Artist' }}</h2>
-      <h3 id="album">{{ metadata?.album ?? 'Album' }}</h3>
+      <h2 id="artist" v-if="metadata?.artist">{{ metadata.artist }}</h2>
+      <h3 id="album" v-if="metadata?.album">{{ metadata.album }}</h3>
 
       <div class="table">
         <table class="prop-table">
