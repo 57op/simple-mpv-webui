@@ -107,7 +107,7 @@ static void parse_script_options(char *script_opts, struct ws_config *config) {
     char *key = strtok_r(entry, "=", &sub_entry_ptr);
     char *value = strtok_r(NULL, "=", &sub_entry_ptr);
 
-    if (strncmp(SCRIPT_OPT_PREFIX, key, prefix_len) == 0) {
+    if (strncmp(key, SCRIPT_OPT_PREFIX, prefix_len) == 0) {
       // remove prefix
       key = &key[prefix_len];
 
@@ -214,7 +214,7 @@ static void *start_ws_thread(void *arg0) {
     return NULL;
   }
 
-  printf("[ws-webui] serving on interface: %s, port %d, ipv6 %s | %s\n", config.iface == NULL ? "all" : config.iface, config.port, config.use_ipv6 == 0 ? "no" : "yes", origin_dir);
+  printf("[ws-webui] serving on interface %s, port %d, ipv6 %s | %s\n", config.iface == NULL ? "all" : config.iface, config.port, config.use_ipv6 == 0 ? "no" : "yes", origin_dir);
   while (data->running && lws_service(context, 0) >= 0);
 
   lws_context_destroy(context);

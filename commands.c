@@ -94,8 +94,8 @@ static char *command_run_command(mpv_handle *mpv, char *command) {
     if (
       isspace(command[i]) && (
         (command[i + 1] == '-' || isdigit(command[i + 1])) ||
-        (i < command_len - 2 && strncmp(&command[i + 1], "inf", 3) == 0) ||
-        (i < command_len - 1 && strncmp(&command[i + 1], "no", 2) == 0))
+        (i < command_len - 2 && strncmp(&command[i + 1], "inf", 4) == 0) ||
+        (i < command_len - 1 && strncmp(&command[i + 1], "no", 3) == 0))
     ) {
       command[i] = '\0';
       cut_position = i;
@@ -108,7 +108,7 @@ static char *command_run_command(mpv_handle *mpv, char *command) {
 
   for (size_t i = 0; i < COMMANDS_BUCKET_LEN && bucket[i] != NULL && found == 0; i++) {
     // commands starts with bucket[i]
-    found = strncmp(bucket[i], command, strlen(bucket[i])) == 0;
+    found = strncmp(command, bucket[i], strlen(bucket[i])) == 0;
   }
 
   int status = -1;
