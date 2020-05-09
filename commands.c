@@ -94,8 +94,8 @@ static char *command_run_command(mpv_handle *mpv, char *command) {
     if (
       isspace(command[i]) && (
         (command[i + 1] == '-' || isdigit(command[i + 1])) ||
-        (i < command_len - 2 && strncmp(&command[i + 1], "inf", 4) == 0) ||
-        (i < command_len - 1 && strncmp(&command[i + 1], "no", 3) == 0))
+        (i < command_len - 2 && strcmp(&command[i + 1], "inf") == 0) ||
+        (i < command_len - 1 && strcmp(&command[i + 1], "no") == 0))
     ) {
       command[i] = '\0';
       cut_position = i;

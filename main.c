@@ -35,9 +35,9 @@ static signed char ws_request_parse_callback(struct lejp_ctx *ctx, char reason) 
     struct web_message *message = (struct web_message *) ctx->user;
 
     if (strcmp(ctx->path, "command") == 0) {
-      strncpy(message->command, ctx->buf, sizeof(message->command));
+      strncpy(message->command, ctx->buf, sizeof(message->command) - 1);
     } else if (strcmp(ctx->path, "param") == 0) {
-      strncpy(message->param, ctx->buf, sizeof(message->param));
+      strncpy(message->param, ctx->buf, sizeof(message->param) - 1);
     }
   }
 
@@ -59,8 +59,8 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
 
   switch (reason) {
     case LWS_CALLBACK_RECEIVE: {
-      message->command[0] = '\0';
-      message->param[0] = '\0';
+      memset(message->command, '\0', sizeof(message->command));
+      memset(message->param, '\0', sizeof(message->param));
 
       struct lejp_ctx lejp;
       lejp_construct(&lejp, ws_request_parse_callback, NULL, NULL, 0);
