@@ -216,7 +216,11 @@ static void *start_ws_thread(void *arg0) {
     return NULL;
   }
 
-  printf("[ws-webui] serving on interface %s, port %d, ipv6 %s, from origin %s\n", config.iface == NULL ? "all" : config.iface, config.port, config.use_ipv6 == 0 ? "no" : "yes", origin_dir);
+  //printf("[ws-webui] serving on interface %s, port %d, ipv6 %s, from origin %s\n", config.iface == NULL ? "all" : config.iface, config.port, config.use_ipv6 == 0 ? "no" : "yes", origin_dir);
+  char osd_str[256];
+  snprintf(osd_str, 256, "show-text \"[ws-webui] interface: %s; port: %d; ipv6 %s\" 2000", config.iface == NULL ? "all" : config.iface, config.port, config.use_ipv6 == 0 ? "no" : "yes");
+  mpv_command_string(handle, osd_str);
+
   while (data->running && lws_service(context, 0) >= 0);
 
   lws_context_destroy(context);
