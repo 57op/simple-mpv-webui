@@ -30,6 +30,8 @@ struct ws_config {
   char *webui_dir;
 };
 
+static char ws_result[LWS_SEND_BUFFER_PRE_PADDING + WS_RESULT_SIZE + LWS_SEND_BUFFER_POST_PADDING];
+
 static signed char ws_request_parse_callback(struct lejp_ctx *ctx, char reason) {
   if (reason & LEJP_FLAG_CB_IS_VALUE) {
     struct web_message *message = (struct web_message *) ctx->user;
@@ -73,7 +75,6 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
 
       size_t i = 0;
       struct command *cmd = NULL;
-      char *res;
 
       while (cmd == NULL && COMMANDS[i].name != NULL) {
         if (strcmp(message->command, COMMANDS[i].name) == 0) {
@@ -85,9 +86,10 @@ static int ws_callback(struct lws *wsi, enum lws_callback_reasons reason, void *
 
       if (cmd == NULL) {
         printf("{ command: %s, param: %s }: invalid request\n", message->command, message->param);
-      } else if ((res = cmd->callback(data->mpv, message->param)) != NULL) {
-        res = &res[LWS_SEND_BUFFER_PRE_PADDING];
-        lws_write(wsi, (unsigned char *) res, strlen(res), LWS_WRITE_TEXT);
+      } else {
+        char *result = &ws_result[LWS_SEND_BUFFER_PRE_PADDING];
+        size_t result_len = cmd->callback(data->mpv, message->param, result);
+        lws_write(wsi, (unsigned char *) result, result_len, LWS_WRITE_TEXT);
       }
 
       break;
@@ -214,7 +216,7 @@ static void *start_ws_thread(void *arg0) {
     return NULL;
   }
 
-  printf("[ws-webui] serving on interface %s, port %d, ipv6 %s | %s\n", config.iface == NULL ? "all" : config.iface, config.port, config.use_ipv6 == 0 ? "no" : "yes", origin_dir);
+  printf("[ws-webui] serving on interface %s, port %d, ipv6 %s, from origin %s\n", config.iface == NULL ? "all" : config.iface, config.port, config.use_ipv6 == 0 ? "no" : "yes", origin_dir);
   while (data->running && lws_service(context, 0) >= 0);
 
   lws_context_destroy(context);
