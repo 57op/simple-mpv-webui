@@ -75,6 +75,11 @@ class WSApi {
   }
 }
 
+function numberOrDefault (number, def) {
+  number = +number
+  return isNaN(number) ? def : number
+}
+
 function main () {
   const app = new Vue({
     el: '#app',
@@ -136,22 +141,22 @@ function main () {
 
           this.title = await this.mpv.get_property('filename')
 
-          this.subDelay = +(await this.mpv.get_property('sub-delay'))
-          this.audioDelay = +(await this.mpv.get_property('audio-delay'))
-          this.chapters = +(await this.mpv.get_property('chapters'))
+          this.subDelay = numberOrDefault(await this.mpv.get_property('sub-delay'), this.subDelay)
+          this.audioDelay = numberOrDefault(await this.mpv.get_property('audio-delay'), this.audioDelay)
+          this.chapters = numberOrDefault(await this.mpv.get_property('chapters'),  this.chapters)
 
           if (this.chapters > 0) {
-            this.chapter = +(await this.mpv.get_property('chapter')) + 1
+            this.chapter = (+(await this.mpv.get_property('chapter')) + 1) || this.chapter
           }
 
           this.pause = await this.mpv.get_property('pause') === 'yes'
-          this.position = +(await this.mpv.get_property('time-pos'))
-          this.duration = +(await this.mpv.get_property('duration'))
-          this.remaining = +(await this.mpv.get_property('playtime-remaining'))
+          this.position = numberOrDefault(await this.mpv.get_property('time-pos'), this.position)
+          this.duration = numberOrDefault(await this.mpv.get_property('duration'), this.duration)
+          this.remaining = numberOrDefault(await this.mpv.get_property('playtime-remaining'), this.remaining)
           this.loopFile = await this.mpv.get_property('loop-file')
           this.loopPlaylist = await this.mpv.get_property('loop-playlist')
-          this.volume = +(await this.mpv.get_property('volume'))
-          this.volumeMax = +(await this.mpv.get_property('volume-max'))
+          this.volume = numberOrDefault(await this.mpv.get_property('volume'), this.volume)
+          this.volumeMax = numberOrDefault(await this.mpv.get_property('volume-max'), this.volumeMax)
           this.fullscreen = await this.mpv.get_property('fullscreen') === 'yes'
         } catch (e) {
           console.error(`UI Update failed: ${e}`)
