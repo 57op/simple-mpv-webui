@@ -4,10 +4,15 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <libgen.h>
-#include <dlfcn.h>
 
 #include <libwebsockets.h>
 #include <mpv/client.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
 
 #include "commands.h"
 #define SCRIPT_OPT_PREFIX "ws-webui-"
@@ -151,13 +156,24 @@ static void *start_ws_thread(void *arg0) {
   }
 
   // get plugin path
+  #if _WIN32
+  HMODULE hm = NULL;
+  char _plugin_path[256];
+  GetModuleHandleExA(
+    GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | 
+    GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+    (LPCSTR) &start_ws_thread, &hm);
+  GetModuleFileNameA(hm, _plugin_path, sizeof(_plugin_path));
+  char *plugin_path = dirname(_plugin_path);
+  #else
   Dl_info dl_info;
   if (dladdr(start_ws_thread, &dl_info) == 0) {
     fprintf(stderr, "[dladdr] failed to fetch `plugin_path`\n");
     return NULL;
   }
   char *plugin_path = dirname((char *) dl_info.dli_fname);
-
+  #endif
+ 
   // path / dir \0
   size_t origin_dir_size = strlen(plugin_path) + 1 + strlen(config.webui_dir) + 1;
   char *origin_dir = malloc(origin_dir_size);
@@ -197,7 +213,7 @@ static void *start_ws_thread(void *arg0) {
     .port = config.port,
     .mounts = &mount,
     .protocols = protocols,
-    .ws_ping_pong_interval = 10,
+    //.ws_ping_pong_interval = 10,
     .options = LWS_SERVER_OPTION_VALIDATE_UTF8
   };
 

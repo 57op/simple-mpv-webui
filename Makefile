@@ -1,10 +1,19 @@
-LIB=ws-webui.so
+LIBNAME = ws-webui
+INCLUDE = $(addprefix -I,$(wildcard include/*))
+LIBRARIES = $(addprefix -l:,$(notdir $(wildcard libs/*)))
+
+ifeq ($(OS),Windows_NT)
+	LIB = $(LIBNAME).dll
+else
+	LIB = $(LIBNAME).so
+	CFLAGS = -D_GNU_SOURCE
+endif
 
 all: main.o commands.o
-	gcc -o $(LIB) $^ -s -Os -lwebsockets -shared -fPIC
+	gcc -Llibs -o $(LIB) $^ -s -Os $(LIBRARIES) -shared -fPIC
 
 %.o: %.c
-	gcc -c $< -o $@ -s -Os -std=c11 -fPIC -D_GNU_SOURCE -Wall -Wno-switch
+	gcc $(INCLUDE) $(CFLAGS) -c $< -o $@ -s -Os -std=c11 -fPIC -Wall -Wno-switch
 
 clean:
 	rm -f *.o
